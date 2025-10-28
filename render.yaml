@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: notion-automation
+    env: python
+    region: oregon
+    plan: free
+    buildCommand: "pip install uv && uv sync"
+    startCommand: "uv run uvicorn webhook_server:app --host 0.0.0.0 --port $PORT"
+    envVars:
+      - key: NOTION_TOKEN
+        sync: false
+      - key: NOTION_DATABASE_ID
+        sync: false
+      - key: NOTION_PARENT_PAGE_ID
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: WEBHOOK_SECRET
+        sync: false
+      - key: PYTHON_VERSION
+        value: "3.12"

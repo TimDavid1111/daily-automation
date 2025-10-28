@@ -1,0 +1,15 @@
+[project]
+name = "notion-automation"
+version = "2.0.0"
+description = "Automated Notion-Claude voice transcript processing with structured task generation (Webhook-based)"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "anthropic>=0.71.1",
+    "notion-client>=2.6.0",
+    "pydantic>=2.12.3",
+    "python-dotenv>=1.2.1",
+    "pytz>=2025.2",
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.32.0",
+]
