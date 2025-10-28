@@ -151,15 +151,27 @@ async def webhook(request: Request, background_tasks: BackgroundTasks):
         # Extract page info from the event
         page_data = body.get("data", {})
         
+        # DEBUG: Log the full payload structure
+        print(f"🔍 DEBUG - Full event data: {json.dumps(body, indent=2)}")
+        
         # For page events, the data structure contains the page object
         if isinstance(page_data, dict):
             page_id = page_data.get("id")
             parent = page_data.get("parent", {})
             
+            # DEBUG: Log parent info
+            print(f"🔍 DEBUG - Page ID: {page_id}")
+            print(f"🔍 DEBUG - Parent: {parent}")
+            print(f"🔍 DEBUG - Parent type: {parent.get('type')}")
+            print(f"🔍 DEBUG - Target DATABASE_ID: {DATABASE_ID}")
+            
             # Only process pages that are in our target database
             if parent.get("type") == "database_id":
                 parent_db_id = parent.get("database_id", "").replace("-", "")
                 target_db_id = DATABASE_ID.replace("-", "")
+                
+                print(f"🔍 DEBUG - Parent DB ID: {parent_db_id}")
+                print(f"🔍 DEBUG - Target DB ID: {target_db_id}")
                 
                 if parent_db_id == target_db_id:
                     print(f"✓ Event is from target database, processing...")
