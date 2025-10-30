@@ -146,43 +146,53 @@ async def webhook(request: Request, background_tasks: BackgroundTasks):
     
     print(f"\n📨 Received webhook event: {event_type}")
     
-    # Process page events
-    if event_type == "page.created" or event_type == "page.content_updated":
-        # Extract page info from the event
-        page_data = body.get("data", {})
+    # Process data_source.content_updated events (when database content changes)
+    if event_type == "data_source.content_updated":
+        # Extract entity and data from the event
+        entity = body.get("entity", {})
+        event_data = body.get("data", {})
         
         # DEBUG: Log the full payload structure
         print(f"🔍 DEBUG - Full event data: {json.dumps(body, indent=2)}")
         
-        # For page events, the data structure contains the page object
-        if isinstance(page_data, dict):
-            page_id = page_data.get("id")
-            parent = page_data.get("parent", {})
+        # Verify this is a data_source entity
+        if entity.get("type") == "data_source":
+            data_source_id = entity.get("id", "").replace("-", "")
+            target_db_id = DATABASE_ID.replace("-", "")
             
-            # DEBUG: Log parent info
-            print(f"🔍 DEBUG - Page ID: {page_id}")
-            print(f"🔍 DEBUG - Parent: {parent}")
-            print(f"🔍 DEBUG - Parent type: {parent.get('type')}")
-            print(f"🔍 DEBUG - Target DATABASE_ID: {DATABASE_ID}")
+            # DEBUG: Log entity info
+            print(f"🔍 DEBUG - Data Source ID: {data_source_id}")
+            print(f"🔍 DEBUG - Target DATABASE_ID: {target_db_id}")
             
-            # Only process pages that are in our target database
-            if parent.get("type") == "database_id":
-                parent_db_id = parent.get("database_id", "").replace("-", "")
-                target_db_id = DATABASE_ID.replace("-", "")
+            # Only process events from our target database
+            if data_source_id == target_db_id:
+                print(f"✓ Event is from target database")
                 
-                print(f"🔍 DEBUG - Parent DB ID: {parent_db_id}")
-                print(f"🔍 DEBUG - Target DB ID: {target_db_id}")
+                # Extract the updated blocks (pages that were added/updated)
+                updated_blocks = event_data.get("updated_blocks", [])
                 
-                if parent_db_id == target_db_id:
-                    print(f"✓ Event is from target database, processing...")
-                    # Process in background so webhook responds quickly
-                    background_tasks.add_task(process_transcript_async, page_id)
+                if updated_blocks:
+                    print(f"✓ Found {len(updated_blocks)} updated block(s)")
+                    
+                    # Process each updated block (page) in the background
+                    for block in updated_blocks:
+                        block_id = block.get("id")
+                        block_type = block.get("type")
+                        
+                        print(f"🔍 DEBUG - Block ID: {block_id}, Type: {block_type}")
+                        
+                        if block_id and block_type == "block":
+                            # The block ID is actually a page ID when it's a database child
+                            print(f"✓ Processing block as page: {block_id}")
+                            background_tasks.add_task(process_transcript_async, block_id)
                 else:
-                    print(f"ℹ️  Event from different database, ignoring")
+                    print(f"ℹ️  No updated blocks in event")
             else:
-                print(f"ℹ️  Event not from a database, ignoring")
+                print(f"ℹ️  Event from different database (ID: {data_source_id}), ignoring")
         else:
-            print(f"⚠️  Unexpected data structure in event")
+            print(f"ℹ️  Event entity is not a data_source, ignoring")
+    else:
+        print(f"ℹ️  Event type '{event_type}' not handled")
     
     return JSONResponse(content={"received": True})
 

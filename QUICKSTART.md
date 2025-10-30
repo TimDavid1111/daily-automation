@@ -4,6 +4,8 @@
 
 This version uses Notion webhooks for instant processing instead of polling. Your transcripts are processed within seconds of being added to Notion.
 
+**✨ Uses modern `data_source` events** (2025-09-03 API) for reliable database monitoring.
+
 ## Prerequisites
 
 - A Notion account with a workspace
@@ -18,15 +20,21 @@ This version uses Notion webhooks for instant processing instead of polling. You
 2. Click "+ New integration"
 3. Name it (e.g., "Voice Transcript Automation")
 4. Select your workspace
-5. Click "Submit"
-6. Copy the "Internal Integration Token" (starts with `secret_`)
+5. Set the capabilities:
+   - **Content Capabilities**: Enable "Read content" and "Insert content"
+   - **Comment Capabilities**: (optional, not needed for this workflow)
+   - **User Capabilities**: Choose "No user information" (or as needed)
+6. Click "Submit"
+7. Copy the "Internal Integration Token" (starts with `secret_`)
 
 ### Get Your Database ID
 
 1. Open your "Raw Transcripts" database in Notion
-2. Click "Share" → Add your integration
+2. **Click "Share" → Add your integration** (This is crucial! Your integration must be connected to the database to receive webhook events)
 3. Copy the database URL: `https://www.notion.so/workspace/[DATABASE_ID]?v=...`
 4. The DATABASE_ID is the 32-character string (with dashes removed if present)
+
+   **💡 Important**: When your integration is added to the database, it automatically gets access to all child pages added to that database. This is why the `data_source.content_updated` event works reliably.
 
 ### Get Your Parent Page ID
 
@@ -131,8 +139,9 @@ https://notion-automation-xxxx.onrender.com/webhook
 
 6. Select these event types:
 
-   - ✅ `page.created`
-   - ✅ `page.content_updated`
+   - ✅ `data_source.content_updated`
+
+   **Why this event?** This is the modern event type (new in 2025-09-03 API) that triggers when database content changes, such as when pages are added or updated. It's more reliable than page events because your integration inherits access from the database level.
 
 7. Click **"Create subscription"**
 
@@ -189,8 +198,10 @@ Also need to schedule a review meeting with the team.
 In your Render logs, you'll see:
 
 ```
-📨 Received webhook event: page.created
-✓ Event is from target database, processing...
+📨 Received webhook event: data_source.content_updated
+✓ Event is from target database
+✓ Found 1 updated block(s)
+✓ Processing block as page: abc123...
 📝 Processing page: abc123...
 ✓ Found transcript (247 chars)
 🤖 Sending to Claude API...
@@ -212,12 +223,14 @@ In your Render logs, you'll see:
 
 - Verify your webhook is active in Notion integration settings
 - Status should show ✅ Active, not ⚠️ Pending
+- Ensure `data_source.content_updated` event is selected in the subscription
 
 **Integration doesn't have access**
 
 - Go to your database in Notion
 - Click "..." → Connections
-- Ensure your integration is connected
+- Ensure your integration is connected **to the database itself** (not just individual pages)
+- The integration needs database-level access to receive `data_source.content_updated` events
 
 ### Events Received But Not Processing
 
@@ -355,13 +368,3 @@ git push
 
 3. Render automatically detects and deploys the changes
 4. Check the "Events" tab in Render to track deployment progress
-
-## Advanced: Multiple Databases
-
-To process transcripts from multiple databases:
-
-1. Create separate webhook subscriptions in Notion for each database
-2. Update `webhook_server.py` to handle multiple database IDs
-3. Add database-specific logic in the event handler
-
-Enjoy your automated, real-time Notion workflow! 🚀
